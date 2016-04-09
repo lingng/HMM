@@ -10,8 +10,9 @@ yutingz@usc.edu
 
 import sys
 import os
-# import codecs
+import math
 import json
+import cPickle as pickle
 
 # Global
 transition_dic = {}		#key: tag1,tag2  value: count
@@ -65,6 +66,15 @@ def construct_model(line):
 			tag_count_dic[tag] = 1
 		slst.append(tag)
 
+		# if word_dic.has_key(word):
+		# 	if word_dic[word].has_key(tag):
+		# 		word_dic[word][tag] += 1
+		# 	else:
+		# 		word_dic[word][tag] = 1
+		# else:
+		# 	v_dic = {}
+		# 	v_dic[tag] = 1
+		# 	word_dic[word] = v_dic
 		if word_dic.has_key(word):
 			tidx = get_idx(tag)
 			word_dic[word][tidx] += 1
@@ -137,16 +147,49 @@ with open(path, 'r') as fin:
 smooth_transition(transition_dic)
 count_start_tag(transition_dic)
 
+t_prob_dic = {}
+e_prob_dic = {}
+# construct transition probability log dictionary
+for key, value in transition_dic.iteritems():
+	prev_tag = key[0:2]
+	pos_tag = key[3:5]
+	prev_tag_c = start_tag_dic[prev_tag]
+	tmp_tprob = float(value)/float(prev_tag_c)
+	log_tprob = math.log(tmp_tprob)
+	t_prob_dic[key] = log_tprob
+
+# construct emission probability log dictionary
+for key, value in word_dic.iteritems():
+	tmp_edic = {}
+	for i in range(0, 29):
+		e_count = value[i]
+		if e_count != 0:
+			tag = tags[i]
+			tag_count = tag_count_dic[tag]
+			tmp_eprob = float(e_count)/float(tag_count)
+			log_eprob = math.log(tmp_eprob)
+			tmp_edic[tag] = log_eprob
+	e_prob_dic[key] = tmp_edic
+
+# Shrink the size of the word_dic
+f_word_dic = {}
+for key, value in word_dic.iteritems():
+	tmp_wdic = {}
+	for i in range(0, 29):
+		if value[i] != 0:
+			tag = tags[i]
+			tmp_wdic[tag] = value[i]
+	f_word_dic[key] = tmp_wdic
+
 # Write dictionaries to model file.
 with open('hmmmodel.txt', 'w') as fout:
-	tmpstr = json.dumps(word_dic,ensure_ascii=False)
+	tmpstr = json.dumps(f_word_dic, ensure_ascii = False)
 	fout.write(tmpstr)
 	fout.write('\n')
-	tmpstr = json.dumps(tag_count_dic,ensure_ascii=False)
+	tmpstr = json.dumps(t_prob_dic, ensure_ascii=False)
 	fout.write(tmpstr)
 	fout.write('\n')
-	tmpstr = json.dumps(start_tag_dic,ensure_ascii=False)
+	tmpstr = json.dumps(e_prob_dic, ensure_ascii=False)
 	fout.write(tmpstr)
 	fout.write('\n')
-	tmpstr = json.dumps(transition_dic,ensure_ascii=False)
-	fout.write(tmpstr)
+
