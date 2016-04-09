@@ -51,9 +51,8 @@ def construct_model(line):
 	slst.append("q0")
 
 	for item in lst:
-		word = item.split('/')[:-1]
-		tag = item.split('/')[-1]
-		# print idx(tag)
+		word = item[:-3]
+		tag = item[-2:]
 
 		if tag_count_dic.has_key(tag):
 			tag_count_dic[tag] += 1
@@ -61,21 +60,14 @@ def construct_model(line):
 			tag_count_dic[tag] = 1
 		slst.append(tag)
 
-		# Get the word part for the word/tag item. 
-		# The word may contain multiple '/', thus need to join it.
-		if len(item.split('/')) != 2:
-			key = '/'.join(item.split('/')[:-1])
-		else:
-			key = item.split('/')[0]
-		# Construct the word dictionary. Format: {'word': [list of the count for the word for each tag]}
-		if word_dic.has_key(key):
+		if word_dic.has_key(word):
 			tidx = get_idx(tag)
-			word_dic[key][tidx] += 1
+			word_dic[word][tidx] += 1
 		else:
 			taglst = [0]*29
 			tid = get_idx(tag)
 			taglst[tid] += 1
-			word_dic[key] = taglst
+			word_dic[word] = taglst
 
 	for i in range(0, len(slst)-2):
 		key = slst[i]+","+slst[i+1]
@@ -133,8 +125,3 @@ with open('hmmmodel.txt', 'w') as fout:
 	fout.write('\n')
 	tmpstr = json.dumps(transition_dic,ensure_ascii=False)
 	fout.write(tmpstr)
-
-# print len(word_dic)
-# print len(start_tag_dic)
-# print transition_dic
-# print len(tag_count_dic)
