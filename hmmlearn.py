@@ -30,6 +30,11 @@ tag_dic = { 			#key: tag 		value: index for the tag
 	'PT': 24, 'DR': 25, 'DP': 26, 'DT': 27, 'II': 28
 }
 
+tags = ['DI', 'NC', 'FF', 'SP', 'DA', 'AQ', 'CC', 'PR',
+	'VM', 'VS', 'ZZ', 'P0', 'PP', 'RG', 'AO', 'PX', 
+	'NP', 'CS', 'VA', 'DD', 'RN', 'WW', 'PI', 'PD', 
+	'PT', 'DR', 'DP', 'DT', 'II']
+
 """
 	Get the index for the corresponding tag.
 	
@@ -77,6 +82,26 @@ def construct_model(line):
 			transition_dic[key] = 1
 
 """
+	Apply add-one smoothing to transition count
+
+	@dic: dictionary of the transition count
+"""
+def smooth_transition(dic):
+	for i in range(0, 29):
+		key = "q0,"+tags[i]
+		if dic.has_key(key):
+			dic[key] += 1
+		else:
+			dic[key] = 1
+	for i in range(0, 29):
+		for j in range(0, 29):
+			key = tags[i]+","+tags[j]
+			if dic.has_key(key):
+				dic[key] += 1
+			else:
+				dic[key] = 1
+
+"""
 	Count the start tag of the transition to calculate the transition probability
 
 	@dic: The transition probability dictionary
@@ -109,7 +134,7 @@ with open(path, 'r') as fin:
 		if not line:
 			break
 		construct_model(line)
-
+smooth_transition(transition_dic)
 count_start_tag(transition_dic)
 
 # Write dictionaries to model file.
