@@ -163,23 +163,25 @@ for key, value in word_dic.iteritems():
 	e_prob_dic[key] = tmp_edic
 
 # Shrink the size of the word_dic
-f_word_dic = {}
-for key, value in word_dic.iteritems():
-	tmp_wdic = {}
-	for i in range(0, 29):
-		if value[i] != 0:
-			tag = tags[i]
-			tmp_wdic[tag] = value[i]
-	f_word_dic[key] = tmp_wdic
+# f_word_dic = {}
+# for key, value in word_dic.iteritems():
+# 	tmp_wdic = {}
+# 	for i in range(0, 29):
+# 		if value[i] != 0:
+# 			tag = tags[i]
+# 			tmp_wdic[tag] = value[i]
+# 	f_word_dic[key] = tmp_wdic
 
 # Write dictionaries to model file.
 with open('hmmmodel.txt', 'w') as fout:
-	tmpstr = json.dumps(f_word_dic, ensure_ascii = False)
-	fout.write(tmpstr)
-	fout.write('\n')
+	# tmpstr = json.dumps(f_word_dic, ensure_ascii = False)
+	# fout.write(tmpstr)
+	# fout.write('\n')
 	tmpstr = json.dumps(t_prob_dic, ensure_ascii=False)
 	fout.write(tmpstr)
 	fout.write('\n')
 	tmpstr = json.dumps(e_prob_dic, ensure_ascii=False)
 	fout.write(tmpstr)
 	fout.write('\n')
+	print len(transition_dic)
+	# print len(e_prob_dic)
