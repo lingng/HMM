@@ -23,5 +23,8 @@ while 1:
 		if c_tags[i] == l_tags[i]:
 			cc += 1
 		tc += 1
-print cc, tc
+acc = float(cc)/float(tc)
+print "Correct:", cc
+print "Total:", tc
+print "Accuracy:", acc
 	
