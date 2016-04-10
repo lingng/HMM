@@ -81,6 +81,12 @@ def construct_model(line):
 		else:
 			transition_dic[key] = 1
 
+	end_tag = "q1"
+	transition_key = slst[len(slst)-1]+","+end_tag
+	if transition_dic.has_key(transition_key):
+		transition_dic[transition_key]+=1
+	else:
+		transition_dic[transition_key]=1
 """
 	Apply add-one smoothing to transition count
 
@@ -100,6 +106,12 @@ def smooth_transition(dic):
 				dic[key] += 1
 			else:
 				dic[key] = 1
+	for i in range(0, 29):
+		key = tags[i]+",q1"
+		if dic.has_key(key):
+			dic[key] += 1
+		else:
+			dic[key] = 1
 
 """
 	Count the start tag of the transition to calculate the transition probability
@@ -162,26 +174,12 @@ for key, value in word_dic.iteritems():
 			tmp_edic[tag] = log_eprob
 	e_prob_dic[key] = tmp_edic
 
-# Shrink the size of the word_dic
-# f_word_dic = {}
-# for key, value in word_dic.iteritems():
-# 	tmp_wdic = {}
-# 	for i in range(0, 29):
-# 		if value[i] != 0:
-# 			tag = tags[i]
-# 			tmp_wdic[tag] = value[i]
-# 	f_word_dic[key] = tmp_wdic
-
 # Write dictionaries to model file.
 with open('hmmmodel.txt', 'w') as fout:
-	# tmpstr = json.dumps(f_word_dic, ensure_ascii = False)
-	# fout.write(tmpstr)
-	# fout.write('\n')
+
 	tmpstr = json.dumps(t_prob_dic, ensure_ascii=False)
 	fout.write(tmpstr)
 	fout.write('\n')
 	tmpstr = json.dumps(e_prob_dic, ensure_ascii=False)
 	fout.write(tmpstr)
 	fout.write('\n')
-	print len(transition_dic)
-	# print len(e_prob_dic)
