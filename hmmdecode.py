@@ -17,38 +17,64 @@ import json
 reload(sys)
 sys.setdefaultencoding("utf-8")
 
+"""
+	Get the possible tags for the given word
+
+	@word: String of the word
+	return: list of possible tags
+"""
 def get_word_tags(word):
 	tags = []
 	if emission_dic.has_key(word):
 		for tag in emission_dic[word].iterkeys():
 			tags.append(tag)
 	else:
-		# no such word in the training set
+		# no such word in the training set, return all tags as possible tags
 		tags = [u'DI', u'NC', u'FF', u'SP', u'DA', u'AQ', u'CC', u'PR',
 			u'VM', u'VS', u'ZZ', u'P0', u'PP', u'RG', u'AO', u'PX', 
 			u'NP', u'CS', u'VA', u'DD', u'RN', u'WW', u'PI', u'PD', 
 			u'PT', u'DR', u'DP', u'DT', u'II']
 	return tags
 
+"""
+	Get all the emission probabilities for the given word
+
+	@word: String of the word
+	return: dictionary of the emission probabilities. 
+		Key: the possible tags for this word
+		Value: the emission probability
+"""
 def get_word_emissions(word):
 	word_e = {}
 	if emission_dic.has_key(word):
 		word_e = emission_dic[word]
 	return word_e
 
+"""
+	Initialization the probability and the backpointer
+
+	@word: String of the word
+	return: two dictionaries of the probability and the backpointers
+		prob: Key: possible tags for the current word; 
+			  Value: transition_probability(q0, tag) [+ emission_probability(word[0]|tag)]
+		back: Key: possible tags for the current word;
+			  Value: q0
+"""
 def initialization(word):
 	prob = {}
 	back = {}
-	# print get_word_emission(word)
+	
 	tags = get_word_tags(word)
 	e_probs = get_word_emissions(word)
 	if len(e_probs) == 0:
+		# No such beginning word in the training set
 		for tag in tags:
 			transition_key = "q0,"+tag
 			t_prob = transition_dic[transition_key]
 			prob[tag] = t_prob
 			back[tag] = "q0"
 	else:
+		# Have this word in the training set, thus need to add the emission probability
 		for tag in tags:
 			transition_key = "q0,"+tag
 			t_prob = transition_dic[transition_key]
@@ -56,12 +82,24 @@ def initialization(word):
 			back[tag] = "q0"
 	return prob, back
 
+"""
+	Get the probability for the given word
+
+	@word: String of the word
+	@prev_p: Dictionary of the previous probability
+	return: two dictionaries of the probability and the backpointers
+		prob: Key: possible tags for the current word; 
+			  Value: max( previous_probability(previous_tag) + transition_probability(previous_tag, current_tag) [+ emission_probability(word|current_tag)] )
+		back: Key: possible tags for the current word;
+			  Value: previous_tag with the maximum calculated probability
+"""
 def get_probability(word, prev_p):
 	prob = {}
 	back = {}
 	tags = get_word_tags(word)
 	e_probs = get_word_emissions(word)
 	if len(e_probs) != 0:
+		# Have such word in the training set
 		for curr_t in tags:
 			max_v = -10000
 			max_t = "ept"
@@ -74,9 +112,9 @@ def get_probability(word, prev_p):
 					max_v = value
 					max_t = prev_t
 			prob[curr_t] = max_v
-			back[curr_t]  = max_t
+			back[curr_t] = max_t
 	else:
-		# print tags - All tags included
+		# No such word in training set
 		for curr_t in tags:
 			max_v = -10000
 			max_t = "ept"
@@ -91,6 +129,17 @@ def get_probability(word, prev_p):
 			back[curr_t] = max_t
 	return prob, back
 
+"""
+	Add the end state, get the final probability and the final backpointer
+
+	@word: String of the word
+	@prev_p: Dictionary of the previous probability
+	return: two dictionaries of the probability and the backpointers
+		prob: Key: q1; 
+			  Value: max( previous_probability(previous_tag) + transition_probability(previous_tag, q1) )
+		back: Key: q1;
+			  Value: previous_tag with the maximum calculated probability
+"""
 def add_ending(word, prev_p):
 	prob = {}
 	back = {}
@@ -107,6 +156,13 @@ def add_ending(word, prev_p):
 			back["q1"] = prev_t
 	return prob, back
 
+"""
+	Get the final result for the line.
+
+	@back: A list of backpointers. A list of dictionaries.
+	@words: A list of string. 
+	return: String of the "word/tag" pair. Use whitespace to join them.
+"""
 def get_path(back, words):
 	r_tags = []
 	c_tags = []
@@ -125,6 +181,12 @@ def get_path(back, words):
 		rst.append(pair)
 	return " ".join(rst)
 
+"""
+	Call the Viterbi algorithm.
+
+	@line: String of the input line
+	return: Tagged line
+"""
 def viterbi(line):
 	line = line.strip()
 	words = line.split(" ")
@@ -160,6 +222,7 @@ if not path.endswith('.txt'):
 	print "Please enter a path to corpus txt file"
 	sys.exit()
 
+# Construct model from the model text file.
 model_path = "hmmmodel.txt"
 fmodel = open(model_path, 'r')
 line = fmodel.readline()
@@ -167,6 +230,7 @@ transition_dic = json.loads(line)
 line = fmodel.readline()
 emission_dic = json.loads(line)
 
+# Apply the algorithm to the input file, generate tagged output
 fin = open(path, 'r')
 with open("hmmoutput.txt", "w") as fout:
 	while 1:
