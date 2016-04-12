@@ -13,118 +13,175 @@ import os
 import math
 import json
 
-# Global
-transition_dic = {}		#key: tag1,tag2  value: count
-start_tag_dic = {}		#key: tag_start  value: count
-
-tag_count_dic = {}		#key: tag 		value: count
-word_dic = {}			#key: word 		value: list of the count for the 29 tags
-
-tag_dic = { 			#key: tag 		value: index for the tag
-	'DI': 0, 'NC': 1, 'FF': 2, 'SP': 3, 
-	'DA': 4, 'AQ': 5, 'CC': 6, 'PR': 7, 
-	'VM': 8, 'VS': 9, 'ZZ': 10, 'P0': 11, 
-	'PP': 12, 'RG': 13, 'AO': 14, 'PX': 15, 
-	'NP': 16, 'CS': 17, 'VA': 18, 'DD': 19, 
-	'RN': 20, 'WW': 21, 'PI': 22, 'PD': 23, 
-	'PT': 24, 'DR': 25, 'DP': 26, 'DT': 27, 'II': 28
-}
-
-tags = ['DI', 'NC', 'FF', 'SP', 'DA', 'AQ', 'CC', 'PR',
-	'VM', 'VS', 'ZZ', 'P0', 'PP', 'RG', 'AO', 'PX', 
-	'NP', 'CS', 'VA', 'DD', 'RN', 'WW', 'PI', 'PD', 
-	'PT', 'DR', 'DP', 'DT', 'II']
-
 """
-	Get the index for the corresponding tag.
-	
-	@tag: String
-	rtn: integer
+	Get the transitions and count them in the transition dictionary
+	Add start tag (q0) and end tag (q1).
+
+	@pairs: the list of word/tag pair.
+	@tran_c_dic: transition count dictionary. 
+		Key: transition (format: tag1,tag2 ) Value: count of this transition
 """
-def get_idx(tag):
-	return tag_dic[tag]
-
-"""
-	Construc the model line by line.
-
-	@line: String of the labeled line
-"""
-def construct_model(line):
-	line = line.strip()
-	lst = line.split(' ')
-	slst = []
-	slst.append("q0")
-
-	for item in lst:
-		word = item[:-3]
-		tag = item[-2:]
-
-		if tag_count_dic.has_key(tag):
-			tag_count_dic[tag] += 1
-		else:
-			tag_count_dic[tag] = 1
-		slst.append(tag)
-
-		if word_dic.has_key(word):
-			tidx = get_idx(tag)
-			word_dic[word][tidx] += 1
-		else:
-			taglst = [0]*29
-			tid = get_idx(tag)
-			taglst[tid] += 1
-			word_dic[word] = taglst
-
-	for i in range(0, len(slst)-2):
-		key = slst[i]+","+slst[i+1]
-		if transition_dic.has_key(key):
-			transition_dic[key] += 1
-		else:
-			transition_dic[key] = 1
-
-	end_tag = "q1"
-	transition_key = slst[len(slst)-1]+","+end_tag
-	if transition_dic.has_key(transition_key):
-		transition_dic[transition_key]+=1
+def get_transition(pairs, tran_c_dic):
+	# for all start transition
+	initial_transition = "q0,"+pairs[0][-2:]
+	if tran_c_dic.has_key(initial_transition):
+		tran_c_dic[initial_transition] += 1
 	else:
-		transition_dic[transition_key]=1
-"""
-	Apply add-one smoothing to transition count
+		tran_c_dic[initial_transition] = 1
 
-	@dic: dictionary of the transition count
-"""
-def smooth_transition(dic):
-	for i in range(0, 29):
-		key = "q0,"+tags[i]
-		if dic.has_key(key):
-			dic[key] += 1
+	# paired transition
+	for i in range(1, len(pairs)):
+		prev_tag = pairs[i-1][-2:]
+		curr_tag = pairs[i][-2:]
+		transition_key = prev_tag+","+curr_tag
+		if tran_c_dic.has_key(transition_key):
+			tran_c_dic[transition_key] += 1
 		else:
-			dic[key] = 1
-	for i in range(0, 29):
-		for j in range(0, 29):
-			key = tags[i]+","+tags[j]
-			if dic.has_key(key):
-				dic[key] += 1
+			tran_c_dic[transition_key] = 1
+
+	# for all end transition
+	final_transition = pairs[len(pairs)-1][-2:]+",q1"
+	if tran_c_dic.has_key(final_transition):
+		tran_c_dic[final_transition] += 1
+	else:
+		tran_c_dic[final_transition] = 1
+
+"""
+	Get the count of a specific tag.
+
+	@pairs: the list of word/tag pair.
+	@tag_c_dic: dictionary of tag count. Key: tag; Value: count of this tag
+"""
+def get_tag_count(pairs, tag_c_dic):
+	for i in range(0, len(pairs)):
+		tag = pairs[i][-2:]
+		if tag_c_dic.has_key(tag):
+			tag_c_dic[tag] += 1
+		else:
+			tag_c_dic[tag] = 1
+
+"""
+	Get the emission count.
+
+	@pairs: the list of word/tag pair.
+	@emi_dic: Emission dictionary.
+		Key: word
+		Value: A dictionary. Key: tag; Value: count
+"""
+def get_emission_count(pairs, emi_dic):
+	for i in range(0, len(pairs)):
+		word = pairs[i][:-3]
+		tag = pairs[i][-2:]
+		if emi_dic.has_key(word):
+			if emi_dic[word].has_key(tag):
+				emi_dic[word][tag] += 1
 			else:
-				dic[key] = 1
-	for i in range(0, 29):
-		key = tags[i]+",q1"
-		if dic.has_key(key):
-			dic[key] += 1
+				emi_dic[word][tag] = 1
 		else:
-			dic[key] = 1
+			obj = {}
+			obj[tag] = 1
+			emi_dic[word] = obj
 
 """
-	Count the start tag of the transition to calculate the transition probability
+	Construct model from the given line.
 
-	@dic: The transition probability dictionary
+	@line: input line
+	@tran_c_dic: transition count dictionary
+	@tag_c_dic: tag count dictionary
+	@emi_dic: emission dictionary
 """
-def count_start_tag(dic):
-	for key, value in dic.iteritems():
-		start_tag = key.split(',')[0]
-		if start_tag_dic.has_key(start_tag):
-			start_tag_dic[start_tag] += value
+def construct_model(line, tran_c_dic, tag_c_dic, emi_dic):
+	line = line.strip()
+	pairs = line.split(" ")
+	get_transition(pairs, tran_c_dic)
+	get_tag_count(pairs, tag_c_dic)
+	get_emission_count(pairs, emi_dic)
+
+"""
+	Calculate the emission probability.
+	After finishing the function, the stored value in the emi_dic will be the emission probability rather than the count
+
+	@emi_dic: emission probability dictionary
+	@tag_c_dic: tag count dictionary
+"""
+def calculate_emission_prob(emi_dic, tag_c_dic):
+	for word, word_c_dic in emi_dic.iteritems():
+		for tag, tag_c in word_c_dic.iteritems():
+			emission_prob = float(tag_c)/float(tag_c_dic[tag])
+			e_p = math.log(emission_prob)
+			emi_dic[word][tag] = e_p
+
+"""
+	Get the number that the transition starts from this tag.
+
+	@tran_c_dic: transition count dictionary
+	return: a dictionary. Key: tag; Value: the count that the transition start with this tag.
+"""
+def get_start_tag_count(tran_c_dic):
+	start_dic = {}
+	for transition_key, transition_count in tran_c_dic.iteritems():
+		prev_tag = transition_key[:2]
+		if start_dic.has_key(prev_tag):
+			start_dic[prev_tag] += transition_count
 		else:
-			start_tag_dic[start_tag] = value
+			start_dic[prev_tag] = transition_count
+	return start_dic
+
+"""
+	Calculate transition probability. Apply add-one smoothing for transitions
+
+	@tran_c_dic: Transition count dictionary
+	return: transition probability dictionary
+"""
+def calculate_transition_prob(tran_c_dic):
+	start_tag_dic = get_start_tag_count(tran_c_dic)
+
+	tags = [u'DI', u'NC', u'FF', u'SP', u'DA', u'AQ', u'CC', u'PR',
+			u'VM', u'VS', u'ZZ', u'P0', u'PP', u'RG', u'AO', u'PX', 
+			u'NP', u'CS', u'VA', u'DD', u'RN', u'WW', u'PI', u'PD', 
+			u'PT', u'DR', u'DP', u'DT', u'II']
+
+	tran_p_dic = {}
+
+	for i in range(0, len(tags)):
+		# Start of the sentence. q0: start tag.
+		# from q0 to 29 tags -> +29
+		beginning_transition = "q0,"+tags[i]
+		if tran_c_dic.has_key(beginning_transition):
+			tran_c = tran_c_dic[beginning_transition]+1
+		else:
+			tran_c = 1
+		start_c = start_tag_dic["q0"]+29
+		tran_p = float(tran_c)/float(start_c)
+		tran_p = math.log(tran_p)
+		tran_p_dic[beginning_transition] = tran_p
+
+		# End of the sentence. q1: end tag.
+		# From 29 tags to 29tags + end tag -> +30
+		ending_transition = tags[i]+",q1"
+		if tran_c_dic.has_key(ending_transition):
+			tran_c = tran_c_dic[ending_transition]+1
+		else:
+			tran_c = 1
+		start_c = start_tag_dic[tags[i]]+30
+		tran_p = float(tran_c)/float(start_c)
+		tran_p = math.log(tran_p)
+		tran_p_dic[ending_transition] = tran_p
+
+		# Normal transition between 29 tags
+		# From 29 tags to 29tags + end tag -> +30
+		for j in range(0, 29):
+			transition_key = tags[i]+","+tags[j]
+			
+			if tran_c_dic.has_key(transition_key):
+				tran_c = tran_c_dic[transition_key] + 1
+			else:
+				tran_c = 1
+			start_c = start_tag_dic[tags[i]] + 30
+			tran_p = float(tran_c)/float(start_c)
+			tran_p = math.log(tran_p)
+			tran_p_dic[transition_key] = tran_p
+	return tran_p_dic
 
 """
 Main Function
@@ -139,47 +196,23 @@ if not path.endswith('.txt'):
 	print "Please enter a path to the traning txt file"
 	sys.exit()
 
+transition_count_dic = {}
+tag_count_dic = {}
+emission_dic = {}
 
 with open(path, 'r') as fin:
 	while 1:
 		line = fin.readline()
 		if not line:
 			break
-		construct_model(line)
-smooth_transition(transition_dic)
-count_start_tag(transition_dic)
-
-t_prob_dic = {}
-e_prob_dic = {}
-
-# construct transition probability log dictionary
-for key, value in transition_dic.iteritems():
-	prev_tag = key[0:2]
-	pos_tag = key[3:5]
-	prev_tag_c = start_tag_dic[prev_tag]
-	tmp_tprob = float(value)/float(prev_tag_c)
-	log_tprob = math.log(tmp_tprob)
-	t_prob_dic[key] = log_tprob
-
-# construct emission probability log dictionary
-for key, value in word_dic.iteritems():
-	tmp_edic = {}
-	for i in range(0, 29):
-		e_count = value[i]
-		if e_count != 0:
-			tag = tags[i]
-			tag_count = tag_count_dic[tag]
-			tmp_eprob = float(e_count)/float(tag_count)
-			log_eprob = math.log(tmp_eprob)
-			tmp_edic[tag] = log_eprob
-	e_prob_dic[key] = tmp_edic
-
+		construct_model(line, transition_count_dic, tag_count_dic, emission_dic)
+tran_prob = calculate_transition_prob(transition_count_dic)
+calculate_emission_prob(emission_dic, tag_count_dic)
 # Write dictionaries to model file.
 with open('hmmmodel.txt', 'w') as fout:
-
-	tmpstr = json.dumps(t_prob_dic, ensure_ascii=False)
+	tmpstr = json.dumps(tran_prob, ensure_ascii=False)
 	fout.write(tmpstr)
 	fout.write('\n')
-	tmpstr = json.dumps(e_prob_dic, ensure_ascii=False)
+	tmpstr = json.dumps(emission_dic, ensure_ascii=False)
 	fout.write(tmpstr)
 	fout.write('\n')

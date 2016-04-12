@@ -1,12 +1,12 @@
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
+
 """
 CSCI 544 Homework 6 hmmdecode.py
 Yuting ZHANG
 6099111047
 yutingz@usc.edu
 """
-
-#!/usr/bin/env python
-# -*- coding: utf-8 -*-
 
 import sys
 import os
@@ -46,6 +46,7 @@ def get_word_tags(word):
 """
 def get_word_emissions(word):
 	word_e = {}
+	# word = word.encoding("utf-8")
 	if emission_dic.has_key(word):
 		word_e = emission_dic[word]
 	return word_e
@@ -114,6 +115,7 @@ def get_probability(word, prev_p):
 			prob[curr_t] = max_v
 			back[curr_t] = max_t
 	else:
+		# print word
 		# No such word in training set
 		for curr_t in tags:
 			max_v = -10000
@@ -231,7 +233,8 @@ line = fmodel.readline()
 emission_dic = json.loads(line)
 
 # Apply the algorithm to the input file, generate tagged output
-fin = open(path, 'r')
+fin = codecs.open(path, encoding='utf-8')
+# fin = open(path, 'r')
 with open("hmmoutput.txt", "w") as fout:
 	while 1:
 		line = fin.readline()
